@@ -1,0 +1,23 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: weblogic-pod-monitor
+  namespace: bank-domain-ns
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      weblogic.domainUID: bank-domain
+  podMetricsEndpoints:
+  - port: default
+    path: /wls-exporter/metrics
+    interval: 15s
+    basicAuth:
+      username:
+        name: bank-admin-secret
+        key: username
+      password:
+        name: bank-admin-secret
+        key: password
+

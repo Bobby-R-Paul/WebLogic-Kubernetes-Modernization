@@ -1,0 +1,37 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: weblogic-ingress
+  namespace: bank-domain-ns
+  annotations:
+    
+    # Enable Sticky Sessions using NGINX Cookie Affinity
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/affinity-mode: "persistent"
+    nginx.ingress.kubernetes.io/session-cookie-name: "WLS_STICKY_COOKIE"
+    nginx.ingress.kubernetes.io/session-cookie-expires: "172800"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "172800"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: sampleapp.com
+    http:
+      paths:
+      # Routes /hello and everything under it to the cluster
+      - path: /hello
+        pathType: Prefix
+        backend:
+          service:
+            name: bank-domain-cluster-cluster-1 # Use your actual WebLogic Cluster Service name
+            port:
+              number: 7001
+
+      # Routes /bank_app and everything under it to the cluster
+      - path: /bank_app
+        pathType: Prefix
+        backend:
+          service:
+            name: bank-domain-cluster-cluster-1 # Pointing to the same cluster service
+            port:
+              number: 7001
+

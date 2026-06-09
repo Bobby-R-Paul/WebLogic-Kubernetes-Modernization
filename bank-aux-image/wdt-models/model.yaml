@@ -1,0 +1,123 @@
+domainInfo:
+  AdminUserName: '@@SECRET:__WEBLOGIC-CREDENTIALS__:username@@'
+  AdminPassword: '@@SECRET:__WEBLOGIC-CREDENTIALS__:password@@'
+
+topology:
+  Name: 'bank-domain'
+  AdminServerName: 'admin-server'
+  Cluster:
+    'cluster-1':
+      DynamicServers:
+        ServerTemplate: 'cluster-1-template'
+        ServerNamePrefix: 'managed-server'
+        DynamicClusterSize: 2
+        MaxDynamicClusterSize: 5
+        CalculatedListenPorts: false
+  ServerTemplate:
+    'cluster-1-template':
+      ListenPort: 7001
+
+resources:
+  JDBCSystemResource:
+    BankDataSource:
+      Target: 'cluster-1'
+      JdbcResource:
+        JDBCDataSourceParams:
+          JNDIName: 'jdbc/BankDB'
+        JDBCDriverParams:
+          URL: '@@PROP:db_url@@'
+          DriverName: 'com.mysql.cj.jdbc.Driver'
+          PasswordEncrypted: '@@SECRET:bank-db-secret:password@@'
+          Properties:
+            user:
+              Value: '@@SECRET:bank-db-secret:username@@'
+        JDBCConnectionPoolParams:
+          InitialCapacity: 5
+          TestTableName: 'SQL SELECT 1'
+    AuditDataSource:
+      Target: 'cluster-1'
+      JdbcResource:
+        JDBCDataSourceParams:
+          JNDIName: 'jdbc/AuditDB'
+        JDBCDriverParams:
+          URL: 'jdbc:mysql://mysql-service:3306/bankdb'
+          DriverName: 'com.mysql.cj.jdbc.Driver'
+          PasswordEncrypted: '@@SECRET:bank-db-secret:password@@'
+          Properties:
+            user:
+              Value: '@@SECRET:bank-db-secret:username@@'
+        JDBCConnectionPoolParams:
+          InitialCapacity: 2
+          TestTableName: 'SQL SELECT 1'
+    SampleDataSource:
+      Target: 'cluster-1'
+      JdbcResource:
+        JDBCDataSourceParams:
+          JNDIName: 'jdbc/SampleDB'
+        JDBCDriverParams:
+          URL: '@@PROP:db_url@@'
+          DriverName: 'com.mysql.cj.jdbc.Driver'
+          PasswordEncrypted: '@@SECRET:bank-db-secret:password@@'
+          Properties:
+            user:
+              Value: '@@SECRET:bank-db-secret:username@@'
+        JDBCConnectionPoolParams:
+          InitialCapacity: 3
+          TestTableName: 'SQL SELECT 1'
+    WorkDataSource:
+      Target: 'cluster-1'
+      JdbcResource:
+        JDBCDataSourceParams:
+          JNDIName: 'jdbc/workDB'
+        JDBCDriverParams:
+          URL: '@@PROP:db_url@@'
+          DriverName: 'com.mysql.cj.jdbc.Driver'
+          PasswordEncrypted: '@@SECRET:bank-db-secret:password@@'
+          Properties:
+            user:
+              Value: '@@SECRET:bank-db-secret:username@@'
+        JDBCConnectionPoolParams:
+          InitialCapacity: 3
+          TestTableName: 'SQL SELECT 1'
+
+  FileStore:
+    BankFileStore:
+      Target: 'cluster-1'
+      Directory: '/u01/oracle/user_projects/domains/bank-domain/persistent-stores'
+  JMSServer:
+    BankJMSServer:
+      Target: 'cluster-1'
+      PersistentStore: 'BankFileStore'
+  JMSSystemResource:
+    BankJMSModule:
+      Target: 'cluster-1'
+      SubDeployment:
+        BankSubDeployment:
+          Target: 'BankJMSServer'
+      JmsResource:
+        ConnectionFactory:
+          BankConnectionFactory:
+            JNDIName: 'jms/BankCF'
+            SubDeploymentName: 'BankSubDeployment'
+        UniformDistributedQueue:
+          BankQueue:
+            JNDIName: 'jms/BankQueue'
+            SubDeploymentName: 'BankSubDeployment'
+
+appDeployments:
+  Application:
+    hello_app:
+      SourcePath: 'wlsdeploy/applications/hello.war'
+      ModuleType: 'war'
+      Target: 'cluster-1'
+    BankApplication:
+      SourcePath: 'wlsdeploy/applications/bank_app'
+      ModuleType: 'war'
+      Target: 'cluster-1'
+      StagingMode: 'nostage'
+    wls-exporter:
+      SourcePath: 'wlsdeploy/applications/wls-exporter.war'
+      ModuleType: 'war'
+      Target: 'cluster-1'
+      StagingMode: 'nostage'
+

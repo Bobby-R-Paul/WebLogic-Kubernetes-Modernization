@@ -1,0 +1,80 @@
+apiVersion: "weblogic.oracle/v9" # The version of the WebLogic Operator API
+kind: Domain                     # The type of resource we are creating
+metadata:
+  name: flight-domain              # The unique name for this WebLogic domain
+  namespace: flight-domain-ns      # The K8s "folder" where this lives
+spec:
+  restartVersion: "1"
+  introspectVersion: "1"
+  logHomeEnabled: true
+  logHome: "/shared/logs"
+  domainHome: "/shared/domains/flight-domain" 
+  domainHomeSourceType: PersistentVolume                             
+  image: "bank-base:15c"                                      # The Docker image containing your app/WDT
+  imagePullPolicy: "Never"                                    # Look for the image locally (don't try to download)
+  webLogicCredentialsSecret: 
+    name: bank-admin-secret                              # Reference to the K8s secret with the WLS password
+
+  # --- GLOBAL POD SETTINGS ---
+  serverPod:
+    podSecurityContext:
+      runAsUser: 1000
+      fsGroup: 1000
+
+    env:
+    - name: USER_MEM_ARGS                                     # Setting Java Heap Memory
+      value: "-Xms256m -Xmx512m"                              # Start at 256MB, Max at 512MB (prevents OOM)
+
+
+    volumes:
+    - name: weblogic-pv-storage
+      persistentVolumeClaim:
+        claimName: bank-domain-pvc # The name of your disk request ticket
+        
+    # 5. ADD THIS NEW BLOCK: Mount that disk into the folder path we chose above
+    volumeMounts:
+    - name: weblogic-pv-storage
+      mountPath: "/shared" # Maps the virtual disk to the "/shared" folder
+    
+    startupProbe:                                             # "Is the server waking up?"
+      exec:
+        command: ["/weblogic-operator/scripts/livenessProbe.sh"]
+      initialDelaySeconds: 60                                 # Wait 1 minute before checking the first time
+      periodSeconds: 20                                       # Check every 20 seconds
+      failureThreshold: 60                                    # Can fail 60 times before K8s gives up (20 mins total)
+      
+    livenessProbe:                                            # "Is the server still alive?"
+      exec:
+        command: ["/weblogic-operator/scripts/livenessProbe.sh"]
+      initialDelaySeconds: 60                                 # Don't start checking until 1 min after startup
+      periodSeconds: 60                                       # Check only once a minute (saves CPU)
+      timeoutSeconds: 30                                      # Give the script 30s to finish its check
+
+  # --- ADMIN SERVER SPECIFIC ---
+  adminServer:
+    serverPod:
+      readinessProbe:                                         # "Is the Admin Console ready for use?"
+        httpGet:
+          path: /weblogic/ready                               # The special URL the operator provides
+          port: 7001                                          # THE ADMIN PORT
+
+  # --- LINK TO THE CLUSTER ---
+  clusters:
+  - name: bank-cluster-res                                    # Links this domain to the bank-cluster.yaml file
+
+  configuration:
+    model:
+      configMap: bank-domain-configmap        # The ConfigMap containing your WDT .yaml/.properties
+      domainType: WLS
+        #wdtInstallHome: "/aux/weblogic-deploy"   # Path where WDT will live
+        #modelHome: "/aux/models"                 # Path where models will live
+      auxiliaryImages:
+        - image: "bank-aux:v3"
+          imagePullPolicy: Never
+          sourceWDTInstallHome: "/auxiliary/weblogic-deploy" # Let it copy WDT out
+          sourceModelHome: "/auxiliary/models"
+      runtimeEncryptionSecret: bank-runtime-encryption-secret # Secret used to encrypt WLS config data
+    secrets:
+      - bank-db-secret                                          # Secret for the DB connection
+      - bank-admin-secret                               # Secret for WLS admin login
+

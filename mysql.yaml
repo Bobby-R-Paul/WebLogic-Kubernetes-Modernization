@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bank-db
+  namespace: bank-domain-ns
+spec:
+  selector:
+    matchLabels:
+      app: bank-db
+  template:
+    metadata:
+      labels:
+        app: bank-db
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        env:
+        - name: MYSQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: bank-db-secret
+              key: username
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: bank-db-secret
+              key: password
+        - name: MYSQL_RANDOM_ROOT_PASSWORD
+          value: "yes"
+        - name: MYSQL_DATABASE
+          value: "bankdb"
+        ports:
+        - containerPort: 3306
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-service
+  namespace: bank-domain-ns
+spec:
+  selector:
+    app: bank-db
+  ports:
+  - port: 3306
+    targetPort: 3306
+    protocol: TCP
+
