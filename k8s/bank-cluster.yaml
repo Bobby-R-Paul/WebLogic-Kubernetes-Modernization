@@ -1,0 +1,16 @@
+apiVersion: "weblogic.oracle/v1" # Clusters use a slightly different API version
+kind: Cluster                    # This is a Cluster resource
+metadata:
+  name: bank-cluster-res         # MUST MATCH the name in bank-domain.yaml
+  namespace: bank-domain-ns
+spec:
+  clusterName: cluster-1  # The internal WebLogic name for the cluster
+  replicas: 2                    # How many managed servers to run (1 for stability)
+  
+  # --- MANAGED SERVER SPECIFIC ---
+  serverPod:
+    readinessProbe:              # "Can this server handle app traffic?"
+      httpGet:
+        path: /weblogic/ready
+        port: 7001               # THE MANAGED SERVER PORT (Crucial fix!)
+

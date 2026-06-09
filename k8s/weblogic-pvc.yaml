@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bank-domain-pvc
+  namespace: flight-domain-ns  # Must match your WebLogic folder namespace
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 3Gi  # Must match or be smaller than the PV size above
+
