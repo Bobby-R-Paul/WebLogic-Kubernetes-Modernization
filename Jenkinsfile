@@ -39,7 +39,7 @@ spec:
             steps {
                 container('kubectl') {
                     sh 'apk add --no-cache kubectl'
-                    
+                    sh "cd k8s"
                     // 1. Updates restartVersion at root spec
                     sh "sed -i 's/restartVersion: .*/restartVersion: \"${BUILD_NUMBER}\"/' domain.yaml"
                     
